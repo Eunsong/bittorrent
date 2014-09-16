@@ -3,7 +3,6 @@ import bencode
 import hashlib
 import urllib, urllib2
 import metainfo
-import requests
 
 class Tracker(object):
     def __init__(self, client_):
@@ -34,8 +33,9 @@ class Tracker(object):
                     'port': str(port), 'uploaded': str(uploaded),\
                     'downloaded': str(downloaded), 'left': str(left),\
                     'event': event}
-        response = requests.get(base_url, params=parameters).text
-        return bencode.Bencode().decode(response)
+        request_url = base_url + '?' + urllib.urlencode(parameters)
+        response = bencode.Bencode().decode(urllib2.urlopen(request_url).read())
+        return response
         """     
         print urllib2.urlopen(request_url).read()
         print "hashed info : "

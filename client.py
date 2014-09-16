@@ -19,7 +19,7 @@ class Client(object):
             num_peers = len(arg)/6
             for n in range(num_peers):
                 ip = '.'.join([str(ord(c)) for c in arg[n*6: n*6 + 4]])
-                port = str(ord(arg[n*6 + 4])) + str(ord(arg[n*6 + 5]))
+                port = str(ord(arg[n*6 + 4])*256 + ord(arg[n*6 + 5]))
                 peers.append({'ip': ip, 'port': port})
         else: # dictionary model is not implemented yet
             raise ValueError("unsupported tracker response format")

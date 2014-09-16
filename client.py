@@ -14,6 +14,7 @@ class Client(object):
     def get_peers(self):
         peers = []
         arg = self.trackerResponse['peers']
+        print arg
         if ( type(arg) is str): # if binary model
             assert (len(arg) % 6 == 0)
             num_peers = len(arg)/6

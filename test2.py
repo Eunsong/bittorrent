@@ -4,8 +4,8 @@ import metainfo
 import client
 import tracker
 import bencode
-#infile = open("b.torrent")
-infile = open("tomstracker.torrent")
+infile = open("b.torrent")
+#infile = open("tomstracker.torrent")
 str = ""
 for each_line in infile:
 	str += each_line

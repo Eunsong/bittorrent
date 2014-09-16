@@ -32,7 +32,7 @@ class Tracker(object):
         parameters = { 'info_hash': info_hash, 'peer_id': str(peer_id),\
                     'port': str(port), 'uploaded': str(uploaded),\
                     'downloaded': str(downloaded), 'left': str(left),\
-                    'event': event}
+                    'event': event, 'compact': 1}
         request_url = base_url + '?' + urllib.urlencode(parameters)
         response = bencode.Bencode().decode(urllib2.urlopen(request_url).read())
         return response

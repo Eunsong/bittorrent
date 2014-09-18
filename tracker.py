@@ -39,6 +39,7 @@ class Tracker(object):
         response = bencode.Bencode().decode(urllib2.urlopen(request_url).read())
         logging.info('received response from tracker')    
         return response
+        
         """     
         print urllib2.urlopen(request_url).read()
         print "hashed info : "

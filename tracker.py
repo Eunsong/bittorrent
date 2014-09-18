@@ -3,6 +3,7 @@ import bencode
 import hashlib
 import urllib, urllib2
 import metainfo
+import logging
 
 class Tracker(object):
     def __init__(self, client_):
@@ -10,6 +11,7 @@ class Tracker(object):
         self.uploaded = 0 # currently not implemented
         self.downloaded = 0 # currently not implemented
     def getRequest(self, port=6881):
+        logging.info('sending tracker request')    
         base_url = self.client.metainfo.get("announce")
         info = self.client.metainfo.get("info")
         bcoded_info = bencode.Bencode.encodeDict(info)
@@ -35,6 +37,7 @@ class Tracker(object):
                     'event': event, 'compact': 1}
         request_url = base_url + '?' + urllib.urlencode(parameters)
         response = bencode.Bencode().decode(urllib2.urlopen(request_url).read())
+        logging.info('received response from tracker')    
         return response
         """     
         print urllib2.urlopen(request_url).read()

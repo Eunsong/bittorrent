@@ -64,6 +64,7 @@ class Client(object):
                 logging.debug('handshake succeeded and verified with ip:%s', peer.ip)
 
 
+
 class Peer(object):
     def __init__(self, ip, port):
         self.ip = ip

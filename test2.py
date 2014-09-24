@@ -8,8 +8,8 @@ import peer
 import logging
 
 logging.basicConfig(level=logging.DEBUG)
-infile = open("b.torrent")
-#infile = open("tomstracker.torrent")
+#infile = open("b.torrent")
+infile = open("tomstracker.torrent")
 str = ""
 for each_line in infile:
 	str += each_line
@@ -19,6 +19,8 @@ meta = metainfo.Metainfo(str)
 mycl = client.Client(meta)
 mycl.connect_peers()
 mycl.handshake()
+mycl.send_interested_to_all()
+mycl.recv_message()
 
 
 

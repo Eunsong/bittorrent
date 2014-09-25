@@ -6,6 +6,7 @@ import tracker
 import bencode
 import peer
 import logging
+import message
 
 logging.basicConfig(level=logging.DEBUG)
 #infile = open("b.torrent")
@@ -20,6 +21,10 @@ mycl = client.Client(meta)
 mycl.connect_peers()
 mycl.handshake()
 mycl.send_interested_to_all()
+mycl.recv_message()
+for peer in mycl.connected_peers:
+    if ( peer.am_choking == 0 ):
+        peer.send_request(0, 0, 16384)
 mycl.recv_message()
 
 

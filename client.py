@@ -34,9 +34,7 @@ class Client(object):
         logging.debug('received the following response from the tracker : ')
         logging.debug(self.trackerResponse)
         logging.info('number of pieces : %d', self.num_pieces)
-        self.pieced_needed = [i for range(self.num_pieces)] # list of pieces the client still needs
-
-
+        self.pieced_needed = [i for i in range(self.num_pieces)] # list of pieces the client still needs
     def update_peers(self):
         self.peers = self.get_peers()
     def get_peers(self):
@@ -155,6 +153,17 @@ class Peer(object):
             self.client_interested = 1 # 1: interested, 0: not interested
         except socket.error:
             logging.error('ERROR in sending message to peer(%s:%d)',\
+                          self.ip, self.port)
+
+    def send_request(self, piece_index, offset, requested_length):
+        msg = Message.encode_request_message(piece_index, offset, requested_length)
+        try:
+            logging.debug('(%s:%d) sending request for a piece #%d(offset %d) to peer ',\
+                          self.ip, self.port, piece_index, offset)
+            self.sock.send(msg)
+            logging.debug('(%s:%d) request sent')
+        except socket.error:
+            logging.error('ERROR in sending request to peer(%s:%d)',\
                           self.ip, self.port)
 
     def recv_and_load_message(self):

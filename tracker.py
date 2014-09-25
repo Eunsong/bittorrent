@@ -2,7 +2,6 @@ import client
 import bencode
 import hashlib
 import urllib, urllib2
-import metainfo
 import logging
 
 class Tracker(object):

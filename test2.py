@@ -1,12 +1,12 @@
 #! /usr/bin/python
 
-import metainfo
 import client
 import tracker
 import bencode
 import peer
 import logging
 import message
+from peer import Peer
 
 logging.basicConfig(level=logging.DEBUG)
 #infile = open("b.torrent")
@@ -16,7 +16,7 @@ for each_line in infile:
 	str += each_line
 infile.close()
 
-meta = metainfo.Metainfo(str)
+meta = client.Metainfo(str)
 mycl = client.Client(meta)
 mycl.connect_peers()
 mycl.handshake()

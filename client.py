@@ -5,6 +5,8 @@ import bencode
 import struct
 import socket
 import logging
+from message import Message
+import math
 
 class Client(object):
     def __init__(self, metainfo_):
@@ -12,9 +14,29 @@ class Client(object):
         self.metainfo = metainfo_
         self.tracker = tracker.Tracker(self)
         self.trackerResponse = self.request_tracker()
+        logging.debug('meta info details...')
+        logging.debug(self.metainfo.get('info'))
         # list of {'ip': ip, 'port': port} peer dictionaries
+        self.file_length = 0
+        if ( 'length' in self.metainfo.get('info') ):
+            self.file_length = self.metainfo.get('info')['length']
+        elif ( 'files' in self.metainfo.get('info')):
+            for each_file in self.metainfo.get('info')['files']:
+                self.file_length += each_file['length']
+        else:
+            raise ValueError('file length not defined in the torrent file')
+        self.piece_length = self.metainfo.get('info')['piece length']
+        self.num_pieces = int(math.ceil(self.file_length/self.piece_length))
         self.peers = self.get_peers()
         self.connected_peers = []
+        self.pieces = [] # list of pieces the client has
+        logging.info('file length : %d', self.file_length)
+        logging.debug('received the following response from the tracker : ')
+        logging.debug(self.trackerResponse)
+        logging.info('number of pieces : %d', self.num_pieces)
+        self.pieced_needed = [i for range(self.num_pieces)] # list of pieces the client still needs
+
+
     def update_peers(self):
         self.peers = self.get_peers()
     def get_peers(self):
@@ -66,8 +88,9 @@ class Client(object):
     def recv_message(self):
         logging.info('receiving messages from all connected peers...')
         for peer in self.connected_peers:
-            print peer.recv_decoded_message()
-
+            if ( peer.handshaked):
+                peer.recv_and_load_message()
+                peer.process_messages()
 
     def handshake(self):
         logging.info('trying to handshake with connected peers...')
@@ -87,6 +110,9 @@ class Peer(object):
         self.client_choking = 1 # whether the client is choking this peer
         self.client_interested = 0 # whether the client is interested in this peer
         self.handshaked = False
+        self.unprocessed_messages = []
+        self.pieces = [] # list of pieces that the peer has
+
         
     def connect(self, timeout=0.5):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -131,14 +157,13 @@ class Peer(object):
             logging.error('ERROR in sending message to peer(%s:%d)',\
                           self.ip, self.port)
 
-    def recv_decoded_message(self):
+    def recv_and_load_message(self):
         logging.debug('receiving message from peer(%s:%d)',\
                        self.ip, self.port)
         buff = ''
         while True:
             try:
                 msg = self.sock.recv(4096)
-                print msg
                 if len(msg) == 0:
                     break
                 buff += msg
@@ -147,179 +172,37 @@ class Peer(object):
                               self.ip, self.port)
                 break
         try:
-            print "printing bare message from %s: " %self.ip
-            print buff
-            print "printing decoded message :"
-            print Message.decode_all_messages(buff)
-            return Message.decode_all_messages(buff)
+            logging.debug("(%s:%d) receiving messages...", self.ip, self.port)
+            decoded_messages = Message.decode_all_messages(buff)
+            self.unprocessed_messages += decoded_messages
+            logging.debug("(%s:%d) following messages successfully loaded...",  self.ip, self.port)
+            logging.debug(decoded_messages)
         except ValueError:
             logging.error("invalid message. Skipping to next peer")
             pass
 
-class Message(object):
-
-    MESSAGE_TYPES = {
-        'keep-alive': struct.pack("!I", 0),
-        'choke': struct.pack("!IB", 1, 0),
-        'unchoke': struct.pack("!IB", 1, 1),
-        'interested': struct.pack("!IB", 1, 2),
-        'not interested': struct.pack("!IB", 1, 3),
-        'have': struct.pack("!IB", 5, 4),
-    }
-
-    MESSAGE_IDS = {
-        0: 'choke',
-        1: 'unchoke',
-        2: 'interested',
-        3: 'not interested',
-        4: 'have',
-        5: 'bitfield',
-        6: 'request'
-    }
-
-    @classmethod
-    def encode_message(cls, message_type, index=-1):
-        if message_type is 'have':
-            if not index is -1:
-                return cls.MESSAGE_TYPES['have'] + struct.pack("!I", index)
+    def process_messages(self):
+        """ use messages loaded in self.unprocessed_messages update self attributes
+        """
+        for each_message in self.unprocessed_messages:
+            if not ( 'message_type' in each_message):
+                logging.error("(%s:%d) invalid message found...ignoring the message",\
+                              self.ip, self.port)
             else:
-                raise ValueError('piece index is required for have message')
-        else:
-            try:
-                return cls.MESSAGE_TYPES[message_type]
-            except KeyError:
-                raise KeyError("Invalid message type selected")
-
-    @staticmethod
-    def encode_request_message(index, begin, length):
-        return struct.pack("!IBIII", 13, 6, index, begin, length)   
-
-    @classmethod
-    def decode_all_messages(cls, org_messages):
-        if ( len(org_messages) < 4):
-            return []
-        else:
-            length = struct.unpack("!I", org_messages[:4])[0]
-            if ( length is 0 ): # keep-alive
-                msg = {'message_type': 'keep-alive'}
-                decoded_messages = cls.decode_all_messages(org_messages[4:])
-                decoded_messages.append(msg)
-                return decoded_messages
-            elif ( length is 1 ):
-                msg_id = struct.unpack("B", org_messages[4:5])[0]
-                message_type = cls.MESSAGE_IDS[msg_id]
-                msg = {'message_id': msg_id, 'message_type': message_type}
-                decoded_messages = cls.decode_all_messages(org_messages[5:])
-                decoded_messages.append(msg)
-                return decoded_messages
-            else:
-                msg_id = struct.unpack("B", org_messages[4:5])[0]
-                if ( msg_id is 4): # have
-                    piece_index = struct.unpack("!I", org_messages[5:9])[0]
-                    message_type = cls.MESSAGE_IDS[msg_id]
-                    msg = {'message_id': msg_id,'message_type': message_type,\
-                            'piece_index': piece_index}
-                    decoded_messages = cls.decode_all_messages(org_messages[9:])
-                    decoded_messages.append(msg)
-                    return decoded_messages
-                elif ( msg_id is 5): # bitfield
-                    logging.debug('trying to decode a bitfield message...')
-                    format = ''
-                    for i in range(length-1):
-                        format += 'B'
-                    try:
-                        unpacked = struct.unpack(format, org_messages[5:4+length])
-                    except struct.error: # return -1 to tell client to drop the connection 
-                        return [-1]
-                    bitfield = ''
-                    decoded_bitfield = unpacked
-                    for each_byte in decoded_bitfield:
-                        bin_number = bin(each_byte)[2:].zfill(8)
-                        bitfield += bin_number
-                    message_type = cls.MESSAGE_IDS[msg_id]
-                    logging.debug('completed decoding the bitfield message...')
-                    msg = {'message_id': msg_id, 'message_type': message_type,\
-                        'bitfield': bitfield}
-                    decoded_messages = cls.decode_all_messages(org_messages[4+length:])
-                    decoded_messages.append(msg)
-                    return decoded_messages
-                elif ( msg_id is 6):
-                    index, begin, requested_length = struct.unpack("!III", msg[5:17])
-                    message_type = cls.MESSAGE_IDS[msg_id]
-                    msg = {'message_id': msg_id, 'message_type': message_type,\
-                           'index': index, 'begin': begin, 'length': requested_length}
-                    decoded_messages = cls.decode_all_messages(org_messages[17:])
-                    decoded_messages.append(msg)
-                    return decoded_messages
-                return []
-
-
-"""
-    @classmethod
-    def decode_message(cls, messages):
-        if ( len(messages) < 4):
-            raise ValueError("invalid message(shorter than the shortest message)")
-        else:
-            length = struct.unpack("!I", msg)
-            if ( length is 0 ): # keep-alive
-                return {'message_type': 'keep-alive'}
-            elif ( length is 1 ):
-                msg_id = struct.unpack("B", msg[4:5])
-                return {'message_id': msg_id, 'message_type': message_type}
-
-        elif ( len(messages) is 4):
-            length = struct.unpack("!I", msg)
-            if ( length is 0 ):
-                return {'message_type': 'keep-alive'}
-            else:
-                raise ValueError("invalid message received")
-        elif ( len(messages) is 5):
-            length, msg_id = struct.unpack("!IB", msg)
-            assert length == 1
-            meesage_type = cls.MESSAGE_IDS[msg_id]
-            return {'message_id': msg_id, 'message_type': message_type}
-        else: # len(msg) > 5 
-            length, msg_id = struct.unpack("!IB", msg[:5])
-            if ( msg_id is 4 ):
-                length, msg_id, piece_index = struct.unpack("!IBI", msg[:9])
-                meesage_type = cls.MESSAGE_IDS[msg_id]
-                return {'message_id': msg_id,'message_type': message_type,\
-                        'piece_index': piece_index}
-            elif ( msg_id is 5):
-                logging.debug('trying to decode a bitfield message...')
-                format = '!IB'
-                for i in range(length-1):
-                    format += 'B'
-                try:
-                    unpacked = struct.unpack(format, msg)
-                except struct.error:
-                    logging.error('unmatched bitfield length. require %d but %d found.',\
-                                   (length-1), len(msg)-5)
-                    return -1
-                bitfield = ''
-                decoded_bitfield = unpacked[2:]
-                for each_byte in decoded_bitfield:
-                    bin_number = bin(each_byte)[2:]
-                    bitfield += bin_number
-                message_type = cls.MESSAGE_IDS[msg_id]
-                logging.debug('completed decoding the bitfield message...')
-                return {'message_id': msg_id, 'message_type': message_type,\
-                        'bitfield': bitfield}
-            elif ( msg_id is 6):
-                format = "!IBIII"
-                index, begin, requested_length = struct.unpack(format, msg[5:])
-                message_type = cls.MESSAGE_IDS[msg_id]
-                return {'message_id': msg_id, 'message_type': message_type,\
-                        'index': index, 'begin': begin, 'length': requested_length}
-"""
-
-
-
-
-
-
-
-
-
+                if ( each_message['message_type'] is 'unchoke'):
+                    self.am_choking = 0
+                elif ( each_message['message_type'] is 'choke'):
+                    self.am_choking = 1
+                elif ( each_message['message_type'] is 'interested'):
+                    self.am_interested = 1
+                elif ( each_message['message_type'] is 'not interested'):
+                    self.am_interested = 0
+                elif ( each_message['message_type'] is 'have'):
+                    self.pieces.append(each_message['piece_index'])
+                elif ( each_message['message_type'] is 'bitfield'):
+                    bitfield = each_message['bitfield']
+                    for index, each_bit in enumerate(bitfield):
+                        if ( each_bit is '1'):
+                            self.pieces.append(index)
 
 

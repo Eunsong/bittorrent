@@ -9,15 +9,19 @@ class Peer(object):
     def __init__(self, ip, port):
         self.ip = ip
         self.port = port
-        self.am_choking = 1 # whether this peer is choking the client
-        self.am_interested = 0 # whether this peer is interested in the client
+        self.is_choking = 1 # whether this peer is choking the client
+        self.is_interested = 0 # whether this peer is interested in the client
         self.client_choking = 1 # whether the client is choking this peer
         self.client_interested = 0 # whether the client is interested in this peer
-        self.handshaked = False
+        self.is_handshaked = False
         self.unprocessed_messages = []
         self.pieces = [] # list of pieces that the peer has
+        self.requested_pieces = [] # list of piece_number of requested pieces
 
-        
+
+    def fileno(self):
+        return self.sock.fileno()
+
     def connect(self, timeout=0.5):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sock.settimeout(timeout)
@@ -40,7 +44,7 @@ class Peer(object):
         try:
             self.sock.send(handshake_message)
             packet = self.sock.recv(len(handshake_message))
-            self.handshaked = True
+            self.is_handshaked = True
         except (socket.timeout, socket.error):
             return False
         if not (info_hash == packet[28:-20]):
@@ -61,18 +65,34 @@ class Peer(object):
             logging.error('ERROR in sending message to peer(%s:%d)',\
                           self.ip, self.port)
 
-    def send_request(self, piece_index, offset, requested_length):
+
+    def send_request(self, piece, requested_length=16384):
+        piece_index = piece.NUMBER
+        offset = piece.downloaded
+        # verify if the peer is not choking the client
+        if self.is_choking:
+            logging.debug('cannot send request since the peer is choking the client')
+            return False
         msg = Message.encode_request_message(piece_index, offset, requested_length)
         try:
-            logging.debug('(%s:%d) sending request for a piece #%d(offset %d) to peer ',\
-                          self.ip, self.port, piece_index, offset)
-            self.sock.send(msg)
-            logging.debug('(%s:%d) request sent')
-        except socket.error:
-            logging.error('ERROR in sending request to peer(%s:%d)',\
-                          self.ip, self.port)
+            if not (index in self.requested_pieces):
+                logging.debug('(%s:%d) sending request for a piece #%d(offset %d) to peer ',\
+                              self.ip, self.port, piece_index, offset)
+                self.sock.send(msg)
+                self.requested_pieces.append(index)
+                logging.debug('(%s:%d) request sent')
+            else:
+                return False
+                # send cancellation request
+        except (socket.timeout, socket.error):
+            logging.debug('(%s:%d) sending request failed', self.ip, self.port)
+            self.sock.close()
+            return False
 
-    def recv_and_load_message(self):
+
+    def recv_and_load_messages(self):
+        """ decode received messages, update peer state based on the messages,
+            and return pieces """
         logging.debug('receiving message from peer(%s:%d)',\
                        self.ip, self.port)
         buff = ''
@@ -89,15 +109,25 @@ class Peer(object):
         try:
             logging.debug("(%s:%d) receiving messages...", self.ip, self.port)
             decoded_messages = Message.decode_all_messages(buff)
+            pieces = self._remove_pieces(decoded_messages)
             self.unprocessed_messages += decoded_messages
             logging.debug("(%s:%d) following messages successfully loaded...",  self.ip, self.port)
             logging.debug(decoded_messages)
+            return pieces
         except ValueError:
             logging.error("invalid message. Skipping to next peer")
             pass
+    @staticmethod
+    def _remove_pieces(messages):
+        piece_list = []
+        for message in messages:
+            if ( message['message_type'] is 'piece'):
+                piece_list.append(message)
+                messages.remove(message)
+        return piece_list
 
     def process_messages(self):
-        """ use messages loaded in self.unprocessed_messages update self attributes
+        """ use messages loaded in self.unprocessed_messages to update self attributes
         """
         for each_message in self.unprocessed_messages:
             if not ( 'message_type' in each_message):
@@ -105,13 +135,13 @@ class Peer(object):
                               self.ip, self.port)
             else:
                 if ( each_message['message_type'] is 'unchoke'):
-                    self.am_choking = 0
+                    self.is_choking = 0
                 elif ( each_message['message_type'] is 'choke'):
-                    self.am_choking = 1
+                    self.is_choking = 1
                 elif ( each_message['message_type'] is 'interested'):
-                    self.am_interested = 1
+                    self.is_interested = 1
                 elif ( each_message['message_type'] is 'not interested'):
-                    self.am_interested = 0
+                    self.is_interested = 0
                 elif ( each_message['message_type'] is 'have'):
                     self.pieces.append(each_message['piece_index'])
                 elif ( each_message['message_type'] is 'bitfield'):

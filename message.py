@@ -20,7 +20,8 @@ class Message(object):
         3: 'not interested',
         4: 'have',
         5: 'bitfield',
-        6: 'request'
+        6: 'request',
+        7: 'piece'
     }
 
     @classmethod
@@ -93,7 +94,7 @@ class Message(object):
                     return decoded_messages
                 elif ( msg_id is 6):
                     assert length is 13
-                    index, begin, requested_length = struct.unpack("!III", msg[5:17])
+                    index, begin, requested_length = struct.unpack("!III", org_messages[5:17])
                     message_type = cls.MESSAGE_IDS[msg_id]
                     msg = {'message_id': msg_id, 'message_type': message_type,\
                            'index': index, 'begin': begin, 'length': requested_length}
@@ -102,6 +103,19 @@ class Message(object):
                     return decoded_messages
                 elif ( msg_id is 7 ):
                     logging.error('piece received but this part is not implemented yet')
-
+                    blocksize = length - 9
+                    index, begin = struct.unpack("!II", org_messages[5:13])
+                    message_type = cls.MESSAGE_IDS[msg_id]
+                    block = org_messages[ 13 : 13 + blocksize ]
+                    msg = {'message_id': msg_id, 'message_type': message_type,\
+                            'block': block, 'index': index, 'begin': begin}
+                    decoded_messages = cls.decode_all_messages(org_messages[13 + blocksize:])
+                    decoded_messages.append(msg)
+                    return decoded_messages
                 return []
+
+
+
+
+
 

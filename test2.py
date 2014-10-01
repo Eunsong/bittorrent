@@ -16,14 +16,20 @@ for each_line in infile:
 	str += each_line
 infile.close()
 
-meta = client.Metainfo(str)
-mycl = client.Client(meta)
+mycl = client.Client(str)
+print "file name : ", mycl.metainfo.get('info')['name']
 mycl.connect_peers()
 mycl.handshake()
 mycl.send_interested_to_all()
 mycl.recv_message()
+import select
+while mycl.connected_peers:
+    readable, writable, execptions = select.select(mycl.connected_peers, mycl.connected_peers, [])
+    
+
 for peer in mycl.connected_peers:
-    if ( peer.am_choking == 0 ):
+    if ( peer.is_choking == 0 ):
+        print peer.pieces
         peer.send_request(0, 0, 16384)
 mycl.recv_message()
 

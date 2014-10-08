@@ -75,11 +75,11 @@ class Peer(object):
             return False
         msg = Message.encode_request_message(piece_index, offset, requested_length)
         try:
-            if not (index in self.requested_pieces):
+            if not (piece_index in self.requested_pieces):
                 logging.debug('(%s:%d) sending request for a piece #%d(offset %d) to peer ',\
                               self.ip, self.port, piece_index, offset)
                 self.sock.send(msg)
-                self.requested_pieces.append(index)
+                self.requested_pieces.append(piece_index)
                 logging.debug('(%s:%d) request sent')
             else:
                 return False

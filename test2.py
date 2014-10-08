@@ -8,9 +8,10 @@ import logging
 import message
 from peer import Peer
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 #infile = open("b.torrent")
-infile = open("tomstracker.torrent")
+infile = open("halio02_archive.torrent")
+#infile = open("tomstracker.torrent")
 str = ""
 for each_line in infile:
 	str += each_line
@@ -23,39 +24,20 @@ mycl.handshake()
 mycl.send_interested_to_all()
 mycl.recv_message()
 import select
+reqs = client.RequestManager(mycl.pieces_needed)
+
 while mycl.connected_peers:
-    readable, writable, execptions = select.select(mycl.connected_peers, mycl.connected_peers, [])
-    
+    readables, writables, execptions = select.select(mycl.connected_peers, mycl.connected_peers, [])
+    logging.info('receiving messages from readables')
+    mycl.recv_message(readables)       
+    logging.info('finished receiving messages from readables...')
+    logging.info('start sending requests') 
+    reqs.send_requests(writables)
+    logging.info('finished sending requests')
 
-for peer in mycl.connected_peers:
-    if ( peer.is_choking == 0 ):
-        print peer.pieces
-        peer.send_request(0, 0, 16384)
-mycl.recv_message()
+# for peer in mycl.connected_peers:
+#     if ( peer.is_choking == 0 ):
+#         print peer.pieces
+#         peer.send_request(0, 0, 16384)
+# mycl.recv_message()
 
-
-
-"""
-print mycl.get_peers()
-import socket
-sock1 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-sock2 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-ip = mycl.get_peers()[1]['ip']
-port = mycl.get_peers()[1]['port']
-sock1 = socket.create_connection((ip, port), 60)
-ip = mycl.get_peers()[2]['ip']
-port = mycl.get_peers()[2]['port']
-sock2 = socket.create_connection((ip, port), 60)
-
-socks = [sock1, sock2]
-import select
-print "calling select()"
-readable, writable, errors = select.select(socks, socks, [])
-print "printing redables"
-print readable
-print "printing writables"
-print writable
-"""
-"""
-peer = peer.Peer(mycl.get_peers()[2]['ip'], mycl.get_peers()[2]['port']) 
-mycl.handshake(peer)"""

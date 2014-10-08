@@ -36,7 +36,6 @@ class Client(object):
         logging.info('number of pieces : %d', self.num_pieces)
         self.pieces_needed = self.gen_pieces() # list of pieces the client still needs
         self.pieces_completed = [] # list of pieces the client has
-        #self.request_buffer = [] # scheduled outgoing messages
 
     def update_peers(self):
         self.peers = self.get_peers()
@@ -105,9 +104,10 @@ class Client(object):
                 if ( each_incomplete_piece.NUMBER == piece_number):
                     each_incomplete_piece.add_to_buffer(block, offset)
                     # remove the completed piece from the pieces_needed 
+                    # add put it into the pieces_completed
                     if ( each_incomplete_piece.is_complete() ):
                         self.pieces_needed.remove(each_incomplete_piece)
-
+                        self.pieces_completed.append(each_incomplete_piece)
 
     def handshake(self):
         logging.info('trying to handshake with connected peers...')
@@ -131,8 +131,10 @@ class Client(object):
     def combine_pieces(self):
         """ if all the pieces have been downloaded, combine them together
             to get the target file """
-        if ( self.num_pieces == len(self.pieces_completed)):
-            logging.log('combining downloaded pieces...')
+        if ( len(self.pieces_completed) == self.num_pieces):
+            logging.info('combining downloaded pieces...')
+            # sort completed list using the piece numbers
+            self.pieces_completed.sort( key=lambda piece:piece.NUMBER )
             file_name = self.metainfo.info_dic['info']['name']
             with open(file_name, 'a') as outfile:
                 for i, each_message in enumerate(self.pieces_completed):
@@ -140,7 +142,7 @@ class Client(object):
                     outfile.seek(offset)
                     with open(each_message.file, 'r') as infile:
                         outfile.write(infile.read())
-            logging.log('combining pieces finished. %s file has created', file_name)
+            logging.info('combining pieces finished. %s file has created', file_name)
         else:
             logging.error('cannot generate file. not all pieces are downloaded yet.')
             raise ValueError()
@@ -214,13 +216,14 @@ class MessageScheduler(object):
                     self.pieces_buffer.append( self.peer_piece_pairs[each_peer].piece)
                 # pick a piece randomly from buffer
                 piece = self._random_piece()
-                peer_piece = self.PeerPiece(each_peer)
-                peer_piece.set_piece(piece)
-                logging.debug('assigning piece %d to peer %s',\
-                               piece.NUMBER, each_peer.ip)
-                logging.debug('sending requests to peers')
-                self.peer_piece_pairs[each_peer] = peer_piece
-                each_peer.schedule_request(piece)                
+                if piece:
+                    peer_piece = self.PeerPiece(each_peer)
+                    peer_piece.set_piece(piece)
+                    logging.debug('assigning piece %d to peer %s',\
+                                   piece.NUMBER, each_peer.ip)
+                    logging.debug('sending requests to peers')
+                    self.peer_piece_pairs[each_peer] = peer_piece
+                    each_peer.schedule_request(piece)                
 
     def _random_piece(self):
         """ returns a piece picked randomly from the buffer """
@@ -230,6 +233,7 @@ class MessageScheduler(object):
             return piece
         else:
             logging.error('requesting a piece from the empty buffer')
+            return False
 
     def _schedule_have(self, piece, writables):
         msg = Message.encode_message('have', piece.NUMBER)
@@ -257,7 +261,7 @@ class Piece(object):
     def is_complete(self):
         return ( self.downloaded == self.SIZE )
 
-    def write_to_file(self):
+    def _write_to_file(self):
         try:
             with open(self.file, 'a') as output:
                 output.seek(self.downloaded)
@@ -280,7 +284,7 @@ class Piece(object):
         self.downloaded += len(msg)
         if ( self.downloaded == self.SIZE):
             logging.debug('piece%d download completed...', self.NUMBER)
-            self.write_to_file()
+            self._write_to_file()
         elif ( self.downloaded > self.SIZE):
             logging.error('trying to write file bigger than piece size')
             raise ValueError()

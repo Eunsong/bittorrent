@@ -36,6 +36,10 @@ while mycl.connected_peers:
     for each_peer in writables:
         each_peer.send_scheduled_messages()
     logging.info('finished sending requests')
+    if ( len(mycl.pieces_needed) is 0 ):
+        mycl.combine_pieces()
+        break
+        
 
 # for peer in mycl.connected_peers:
 #     if ( peer.is_choking == 0 ):

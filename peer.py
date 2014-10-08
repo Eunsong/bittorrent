@@ -4,6 +4,7 @@ import struct
 import logging
 import hashlib
 from message import Message
+from Queue import Queue
 
 class Peer(object):
     def __init__(self, ip, port):
@@ -16,8 +17,19 @@ class Peer(object):
         self.is_handshaked = False
         self.unprocessed_messages = []
         self.pieces = [] # list of pieces that the peer has
-        self.requested_pieces = [] # list of piece_number of requested pieces
+        self.scheduled_messages = Queue()
+#        self.requested_pieces = [] # list of piece_number of requested pieces
 
+    def enqueue_message(self, msg):
+        self.scheduled_messages.put(msg)
+
+    def send_scheduled_messages(self):
+        while not self.scheduled_messages.empty():
+            msg = self.scheduled_messages.get()
+            try:
+                self.sock.send(msg)
+            except socket.error:
+                pass
 
     def fileno(self):
         return self.sock.fileno()
@@ -66,28 +78,17 @@ class Peer(object):
                           self.ip, self.port)
 
 
-    def send_request(self, piece, requested_length=16384):
+    def schedule_request(self, piece, requested_length=16384):
         piece_index = piece.NUMBER
         offset = piece.downloaded
+        if ( piece.SIZE - offset < requested_length):
+            requested_length = piece.SIZE - offset
         # verify if the peer is not choking the client
         if self.is_choking:
             logging.debug('cannot send request since the peer is choking the client')
             return False
         msg = Message.encode_request_message(piece_index, offset, requested_length)
-        try:
-            if not (piece_index in self.requested_pieces):
-                logging.debug('(%s:%d) sending request for a piece #%d(offset %d) to peer ',\
-                              self.ip, self.port, piece_index, offset)
-                self.sock.send(msg)
-                self.requested_pieces.append(piece_index)
-                logging.debug('(%s:%d) request sent')
-            else:
-                return False
-                # send cancellation request
-        except (socket.timeout, socket.error):
-            logging.debug('(%s:%d) sending request failed', self.ip, self.port)
-            self.sock.close()
-            return False
+        self.scheduled_messages.put(msg)        
 
 
     def recv_and_load_messages(self):

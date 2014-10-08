@@ -8,10 +8,10 @@ import logging
 import message
 from peer import Peer
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 #infile = open("b.torrent")
-infile = open("halio02_archive.torrent")
-#infile = open("tomstracker.torrent")
+#infile = open("halio02_archive.torrent")
+infile = open("tomstracker.torrent")
 str = ""
 for each_line in infile:
 	str += each_line
@@ -24,7 +24,7 @@ mycl.handshake()
 mycl.send_interested_to_all()
 mycl.recv_message()
 import select
-reqs = client.RequestManager(mycl.pieces_needed)
+reqs = client.MessageScheduler(mycl.pieces_needed)
 
 while mycl.connected_peers:
     readables, writables, execptions = select.select(mycl.connected_peers, mycl.connected_peers, [])
@@ -32,7 +32,9 @@ while mycl.connected_peers:
     mycl.recv_message(readables)       
     logging.info('finished receiving messages from readables...')
     logging.info('start sending requests') 
-    reqs.send_requests(writables)
+    reqs.schedule_messages(writables)
+    for each_peer in writables:
+        each_peer.send_scheduled_messages()
     logging.info('finished sending requests')
 
 # for peer in mycl.connected_peers:

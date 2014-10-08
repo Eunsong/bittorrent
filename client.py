@@ -155,14 +155,14 @@ class Client(object):
                 peer.send_request(each_message)
                 break
 
-class RequestManager(object):
+class MessageScheduler(object):
     def __init__(self, pieces_needed, life_time=20):
         self.peer_piece_pairs = {}
         self.pieces_buffer = list(pieces_needed)
         self.LIFE_TIME = life_time
 
     class PeerPiece(object):
-        def __init__(self, peer, life_time=20):
+        def __init__(self, peer, life_time=100000):
             self.peer = peer
             self.LIFE_TIME = life_time
             self.rounds_left = life_time
@@ -173,16 +173,12 @@ class RequestManager(object):
             return self.piece.is_complete()
         def is_expired(self):
             return ( self.rounds_left < 1 )
-        def send_request(self):
-            if self.piece:
-                self.peer.send_request(self.piece)
-            else:
-                logging.error('cannot send request.\
-                                piece not assigned to the peer')
-    def send_requests(self, writables):
+
+    def schedule_messages(self, writables):
         """
         assign a new piece to available peers that currently don't have
-        assigned piece or that have been expired/completed. 
+        assigned piece or that have been expired/completed, and schedule 
+        request messages. 
         If a piece is completed, sechdule sending have messages to all peers
         """
         s = ''
@@ -192,8 +188,10 @@ class RequestManager(object):
         # update pieces_buffer (completed pieces may have been removed)
         for each_piece in self.pieces_buffer:
             # so if the piece remaining in the buffer is completed, remove it
+            # and schedule sending have message to all peers
             if ( each_piece.is_complete() ):
                 self.pieces_buffer.remove(each_piece)
+                self._schedule_have(each_piece, writables)
         # similarly, peers should be released if they are binded with completed piece
         removables = []
         for peer in self.peer_piece_pairs:
@@ -221,12 +219,8 @@ class RequestManager(object):
                 logging.debug('assigning piece %d to peer %s',\
                                piece.NUMBER, each_peer.ip)
                 logging.debug('sending requests to peers')
-                peer_piece.send_request()
                 self.peer_piece_pairs[each_peer] = peer_piece
-
-        # now send requests
-        # for peer in self.peer_piece_pairs:
-        #     self.peer_piece_pairs[peer].send_request()
+                each_peer.schedule_request(piece)                
 
     def _random_piece(self):
         """ returns a piece picked randomly from the buffer """
@@ -236,6 +230,11 @@ class RequestManager(object):
             return piece
         else:
             logging.error('requesting a piece from the empty buffer')
+
+    def _schedule_have(self, piece, writables):
+        msg = Message.encode_message('have', piece.NUMBER)
+        for each_peer in writables:
+            each_peer.enqueue_message(msg)
 
 
 class Metainfo(object):

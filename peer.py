@@ -18,7 +18,7 @@ class Peer(object):
         self.unprocessed_messages = []
         self.pieces = [] # list of pieces that the peer has
         self.scheduled_messages = Queue()
-#        self.requested_pieces = [] # list of piece_number of requested pieces
+        #self.requested_pieces = [] # list of piece_number of requested pieces
 
     def enqueue_message(self, msg):
         self.scheduled_messages.put(msg)
@@ -29,7 +29,8 @@ class Peer(object):
             try:
                 self.sock.send(msg)
             except socket.error:
-                pass
+                logging.error('cannot send scheduled message to peer(%s:%d)',\
+                               self.ip, self.port)
 
     def fileno(self):
         return self.sock.fileno()
@@ -67,8 +68,6 @@ class Peer(object):
     def send_interested(self):
         msg = Message.encode_message('interested')
         try:
-            logging.debug('sending interested message to peer(%s:%d)...',\
-                          self.ip, self.port)
             self.sock.send(msg)
             logging.debug('interested message sent to peer(%s:%d)',\
                           self.ip, self.port)
@@ -89,7 +88,6 @@ class Peer(object):
             return False
         msg = Message.encode_request_message(piece_index, offset, requested_length)
         self.scheduled_messages.put(msg)        
-
 
     def recv_and_load_messages(self):
         """ decode received messages, update peer state based on the messages,

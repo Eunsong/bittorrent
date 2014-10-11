@@ -7,7 +7,7 @@ from message import Message
 import math
 from peer import Peer
 from random import random
-
+import os
 
 class Client(object):
     def __init__(self, metainfo):
@@ -134,7 +134,7 @@ class Client(object):
         if ( len(self.pieces_completed) == self.num_pieces):
             logging.info('combining downloaded pieces...')
             # sort completed list using the piece numbers
-            self.pieces_completed.sort( key=lambda piece:piece.NUMBER )
+            self.pieces_completed.sort( key=lambda piece: piece.NUMBER )
             file_name = self.metainfo.info_dic['info']['name']
             with open(file_name, 'a') as outfile:
                 for i, each_message in enumerate(self.pieces_completed):
@@ -142,6 +142,7 @@ class Client(object):
                     outfile.seek(offset)
                     with open(each_message.file, 'r') as infile:
                         outfile.write(infile.read())
+                    os.system('rm ' + each_message.file)
             logging.info('combining pieces finished. %s file has created', file_name)
         else:
             logging.error('cannot generate file. not all pieces are downloaded yet.')
@@ -158,13 +159,13 @@ class Client(object):
                 break
 
 class MessageScheduler(object):
-    def __init__(self, pieces_needed, life_time=20):
+    def __init__(self, pieces_needed, life_time=100):
         self.peer_piece_pairs = {}
         self.pieces_buffer = list(pieces_needed)
         self.LIFE_TIME = life_time
 
     class PeerPiece(object):
-        def __init__(self, peer, life_time=100000):
+        def __init__(self, peer, life_time=100):
             self.peer = peer
             self.LIFE_TIME = life_time
             self.rounds_left = life_time
@@ -271,7 +272,6 @@ class Piece(object):
             logging.error('cannot write piece data into file %s', self.file)
 
     def add_to_buffer(self, msg, begin=0):
-        print str(self.downloaded)
         if ( self.is_complete() ):
             logging.debug('piece%d is already completed. Ignoring add_to_buffer request.')
             return

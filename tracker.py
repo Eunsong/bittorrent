@@ -39,12 +39,3 @@ class Tracker(object):
         logging.info('received response from tracker')    
         return response
         
-        """     
-        print urllib2.urlopen(request_url).read()
-        print "hashed info : "
-        print info_hash
-        print ("url = " + request_url)
-        print peer_id
-        print port
-        print left
-        """

@@ -78,17 +78,17 @@ class Client(object):
             port = peer.port
             logging.debug('connected peer%d : %s:%d', i+1, ip, port)
 
-    def send_interested_to_all(self, timeout=0.5):
-        logging.info('sending interested message to all handshaked peers...')
+    def send_interested_to_all(self):
+        logging.debug('sending interested message to all handshaked peers...')
         for peer in self.connected_peers:
             if ( peer.is_handshaked ):
                 peer.send_interested()
-        logging.info('completed sending interested messages')
+        logging.debug('completed sending interested messages')
 
     def recv_message(self, readable_peers=None):
         if ( readable_peers is None ):
             readable_peers = self.connected_peers
-        logging.info('receiving messages from all connected peers...')
+        logging.debug('receiving messages from all connected peers...')
         for peer in readable_peers:
             if ( peer.is_handshaked):
                 pieces = peer.recv_and_load_messages()

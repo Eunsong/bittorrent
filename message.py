@@ -105,7 +105,6 @@ class Message(object):
                     decoded_messages.append(msg)
                     return decoded_messages
                 elif ( msg_id is 7 ):
-                    logging.error('piece received but this part is not implemented yet')
                     blocksize = length - 9
                     index, begin = struct.unpack("!II", org_messages[5:13])
                     message_type = cls.MESSAGE_IDS[msg_id]

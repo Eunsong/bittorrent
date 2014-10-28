@@ -26,14 +26,10 @@ def main(torrent_file):
 
     while mycl.connected_peers:
         readables, writables, execptions = select.select(mycl.connected_peers, mycl.connected_peers, [])
-        # logging.info('receiving messages from readables')
         mycl.recv_message(readables)       
-        # logging.info('finished receiving messages from readables...')
-        # logging.info('start sending requests') 
         reqs.schedule_messages(writables)
         for each_peer in writables:
             each_peer.send_scheduled_messages()
-        # logging.info('finished sending requests')
         if ( len(mycl.pieces_needed) is 0 ):
             mycl.combine_pieces()
             break

@@ -12,12 +12,12 @@ import select
 
 
 def main(torrent_file):
-    with open(torrent_file) as f:
-        torrent_info = ""
+    with open(torrent_file, 'rb') as f:
+        torrent_info = b""
         for each_line in f:
             torrent_info += each_line
     mycl = client.Client(torrent_info)
-    logging.info('starting client to download a file : %s', mycl.metainfo.get('info')['name'])
+    logging.info('starting client to download a file : %s', mycl.metainfo.get(b'info')[b'name'])
     mycl.connect_peers()
     mycl.handshake()
     mycl.send_interested_to_all()
@@ -37,7 +37,6 @@ def main(torrent_file):
         if ( len(mycl.pieces_needed) is 0 ):
             mycl.combine_pieces()
             break
-
 
 
 if __name__ == '__main__':

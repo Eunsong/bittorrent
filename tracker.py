@@ -1,7 +1,8 @@
 import client
 import bencode
 import hashlib
-import urllib, urllib2
+import urllib
+from urllib.request import urlopen
 import logging
 
 class Tracker(object):
@@ -11,31 +12,32 @@ class Tracker(object):
         self.downloaded = 0 # currently not implemented
     def getRequest(self, port=6881):
         logging.info('sending tracker request')    
-        base_url = self.client.metainfo.get("announce")
-        info = self.client.metainfo.get("info")
+        base_url = self.client.metainfo.get(b'announce')
+        info = self.client.metainfo.get(b'info')
         bcoded_info = bencode.Bencode.encodeDict(info)
         info_hash = hashlib.sha1(bcoded_info).digest()
         peer_id = self.client.get_peer_id()
         uploaded = self.uploaded
         downloaded = self.downloaded
         # single file mode
-        if "length" in info:
-            left = info["length"]
+        if b"length" in info:
+            left = info[b"length"]
         # multiple files mode
-        elif "files" in info:
-            files = info["files"]
+        elif b"files" in info:
+            files = info[b"files"]
             left = 0
             for each_file in files:
-                left += each_file["length"]
+                left += each_file[b"length"]
         else:
             raise ValueError("invalid info dictionary")
         event = "started"
-        parameters = { 'info_hash': info_hash, 'peer_id': str(peer_id),\
+        parameters = { 'info_hash': info_hash, 'peer_id': peer_id,\
                     'port': str(port), 'uploaded': str(uploaded),\
                     'downloaded': str(downloaded), 'left': str(left),\
                     'event': event, 'compact': 1}
-        request_url = base_url + '?' + urllib.urlencode(parameters)
-        response = bencode.Bencode().decode(urllib2.urlopen(request_url).read())
+        request_url = base_url.decode('utf8') + '?' + urllib.parse.urlencode(parameters)
+        print(urlopen(request_url).read())
+        response = bencode.Bencode().decode(urlopen(request_url).read())
         logging.info('received response from tracker')    
         return response
         

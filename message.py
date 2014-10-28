@@ -39,7 +39,10 @@ class Message(object):
 
     @staticmethod
     def encode_request_message(index, begin, length):
-        return struct.pack("!IBIII", 13, 6, index, begin, length)   
+        try:
+            return struct.pack("!IBIII", 13, 6, index, begin, length)
+        except struct.error:
+            print("%d, %d, %d"%(index, begin, length))
 
     @classmethod
     def decode_all_messages(cls, org_messages):

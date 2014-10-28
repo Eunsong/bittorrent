@@ -16,17 +16,17 @@ class Client(object):
         self.tracker = tracker.Tracker(self)
         self.trackerResponse = self.request_tracker()
         logging.debug('meta info details...')
-        logging.debug(self.metainfo.get('info'))
+        logging.debug(self.metainfo.get(b'info'))
         # list of {'ip': ip, 'port': port} peer dictionaries
         self.file_length = 0
-        if ( 'length' in self.metainfo.get('info') ):
-            self.file_length = self.metainfo.get('info')['length']
-        elif ( 'files' in self.metainfo.get('info')):
-            for each_file in self.metainfo.get('info')['files']:
-                self.file_length += each_file['length']
+        if ( b'length' in self.metainfo.get(b'info') ):
+            self.file_length = self.metainfo.get(b'info')[b'length']
+        elif ( b'files' in self.metainfo.get(b'info')):
+            for each_file in self.metainfo.get(b'info')[b'files']:
+                self.file_length += each_file[b'length']
         else:
             raise ValueError('file length not defined in the torrent file')
-        self.piece_length = self.metainfo.get('info')['piece length']
+        self.piece_length = self.metainfo.get(b'info')[b'piece length']
         self.num_pieces = int(self.file_length/self.piece_length) + 1
         self.peers = self.get_peers()
         self.connected_peers = []
@@ -42,13 +42,13 @@ class Client(object):
     def get_peers(self):
         logging.info('updating peer list')
         peers = []
-        arg = self.trackerResponse['peers']
-        if ( type(arg) is str): # if binary model
+        arg = self.trackerResponse[b'peers']
+        if ( type(arg) is bytes): # if binary model
             assert (len(arg) % 6 == 0)
-            num_peers = len(arg)/6
+            num_peers = int(len(arg)/6)
             for n in range(num_peers):
-                ip = '.'.join([str(ord(c)) for c in arg[n*6: n*6 + 4]])
-                port = ord(arg[n*6 + 4])*256 + ord(arg[n*6 + 5])
+                ip = '.'.join([str(c) for c in arg[n*6: n*6 + 4]])
+                port = arg[n*6 + 4]*256 + arg[n*6 + 5]
                 peer = Peer(ip, port)
                 peers.append(peer)
         else: # dictionary model is not implemented yet
@@ -60,7 +60,7 @@ class Client(object):
     def _gen_peer_id(self):
         import time
         myid = "-" + "MY" + "0001" + str(time.time())
-        return struct.pack("20s", myid) 
+        return struct.pack("20s", bytes(myid, 'utf8')) 
     def get_peer_id(self):
         return self.peer_id
     
@@ -118,7 +118,7 @@ class Client(object):
 
     def gen_pieces(self):
         """ returns a list of Piece objects """
-        num_pieces = int(math.ceil(self.file_length/self.piece_length)) + 1
+        num_pieces = int(math.floor(self.file_length/self.piece_length)) + 1
         last_piece_length = self.file_length - (num_pieces-1)*self.piece_length
         piece_list = []
         for i in range(num_pieces):
@@ -135,12 +135,12 @@ class Client(object):
             logging.info('combining downloaded pieces...')
             # sort completed list using the piece numbers
             self.pieces_completed.sort( key=lambda piece: piece.NUMBER )
-            file_name = self.metainfo.info_dic['info']['name']
-            with open(file_name, 'a') as outfile:
+            file_name = self.metainfo.info_dic[b'info'][b'name']
+            with open(file_name, 'ab') as outfile:
                 for i, each_message in enumerate(self.pieces_completed):
                     offset = i*self.piece_length
                     outfile.seek(offset)
-                    with open(each_message.file, 'r') as infile:
+                    with open(each_message.file, 'rb') as infile:
                         outfile.write(infile.read())
                     os.system('rm ' + each_message.file)
             logging.info('combining pieces finished. %s file has created', file_name)
@@ -257,17 +257,17 @@ class Piece(object):
         self.NUMBER = piece_number
         self.downloaded = 0
         self.file = outputfile_prefix + str(self.NUMBER) + '.pc'
-        self.buff = ''
+        self.buff = b''
 
     def is_complete(self):
         return ( self.downloaded == self.SIZE )
 
     def _write_to_file(self):
         try:
-            with open(self.file, 'a') as output:
+            with open(self.file, 'ab') as output:
                 output.seek(self.downloaded)
                 output.write(self.buff)
-                buff = ''
+                buff = b''
         except IOError:
             logging.error('cannot write piece data into file %s', self.file)
 

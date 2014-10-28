@@ -4,7 +4,7 @@ import struct
 import logging
 import hashlib
 from message import Message
-from Queue import Queue
+from queue import Queue
 
 class Peer(object):
     def __init__(self, ip, port):
@@ -47,9 +47,9 @@ class Peer(object):
 
     def handshake(self, client_):
         pstrlen = 19
-        pstr = 'BitTorrent protocol'
+        pstr = b'BitTorrent protocol'
         reserved = struct.pack("B", 0)*8
-        info = client_.metainfo.get("info")
+        info = client_.metainfo.get(b"info")
         bcoded_info = bencode.Bencode.encodeDict(info)
         info_hash = hashlib.sha1(bcoded_info).digest()
         handshake_message = struct.pack("B", pstrlen) + pstr + reserved\
@@ -94,7 +94,7 @@ class Peer(object):
             and return pieces """
         logging.debug('receiving message from peer(%s:%d)',\
                        self.ip, self.port)
-        buff = ''
+        buff = b''
         while True:
             try:
                 msg = self.sock.recv(4096)

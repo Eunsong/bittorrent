@@ -17,7 +17,8 @@ def main(torrent_file):
         for each_line in f:
             torrent_info += each_line
     mycl = client.Client(torrent_info)
-    logging.info('starting client to download a file : %s', mycl.metainfo.get(b'info')[b'name'])
+    print('starting client to download a file : %s'\
+          %mycl.metainfo.get(b'info')[b'name'].decode('utf8'))
     mycl.connect_peers()
     mycl.handshake()
     mycl.send_interested_to_all()

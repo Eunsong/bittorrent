@@ -233,7 +233,7 @@ class MessageScheduler(object):
             piece = self.pieces_buffer.pop(piece_number)
             return piece
         else:
-            logging.error('requesting a piece from the empty buffer')
+            logging.warning('requesting a piece from the empty buffer')
             return False
 
     def _schedule_have(self, piece, writables):

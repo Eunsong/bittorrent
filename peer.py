@@ -29,7 +29,7 @@ class Peer(object):
             try:
                 self.sock.send(msg)
             except socket.error:
-                logging.error('cannot send scheduled message to peer(%s:%d)',\
+                logging.warning('cannot send scheduled message to peer(%s:%d)',\
                                self.ip, self.port)
 
     def fileno(self):
@@ -73,7 +73,7 @@ class Peer(object):
                           self.ip, self.port)
             self.client_interested = 1 # 1: interested, 0: not interested
         except socket.error:
-            logging.error('ERROR in sending message to peer(%s:%d)',\
+            logging.warning('socket.error in sending message to peer(%s:%d)',\
                           self.ip, self.port)
 
 
@@ -102,7 +102,7 @@ class Peer(object):
                     break
                 buff += msg
             except socket.error:
-                logging.error('ERROR in receiving message from peer(%s:%d)',\
+                logging.warning('socket.error in receiving message from peer(%s:%d)',\
                               self.ip, self.port)
                 break
         try:

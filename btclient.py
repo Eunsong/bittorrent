@@ -38,12 +38,10 @@ def main(torrent_file):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('torrent', help = 'input torrent file')
-    parser.add_argument('--logging', '-l', help = \
+    parser.add_argument('--logging', '-l', default='error', help = \
                         'level of displaying logging info (error, info, debug)',\
                         choices = ['debug', 'info', 'error'])
     arg = parser.parse_args()
     logging.basicConfig(level=arg.logging.upper())
-    print(arg.torrent)
-    print(arg.logging)
     main(arg.torrent)
 

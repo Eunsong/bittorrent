@@ -80,7 +80,7 @@ class Message(object):
                     try:
                         unpacked = struct.unpack(format, org_messages[5:4+length])
                     except struct.error: # return -1 to tell client to drop the connection 
-                        logging.error('unmathced bitfield found.\
+                        logging.warning('unmathced bitfield found.\
                             requiesting client to disconnect from this peer')
                         return [-1]
                     bitfield = ''

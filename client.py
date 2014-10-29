@@ -8,16 +8,17 @@ import math
 from peer import Peer
 from random import random
 import os
+from asyncio import Task, coroutine
 
 class Client(object):
-    def __init__(self, metainfo):
+    def __init__(self, loop, metainfo):
+        self.loop = loop
         self.peer_id = self._gen_peer_id()
         self.metainfo = Metainfo(metainfo)
         self.tracker = tracker.Tracker(self)
         self.trackerResponse = self.request_tracker()
         logging.debug('meta info details...')
         logging.debug(self.metainfo.get(b'info'))
-        # list of {'ip': ip, 'port': port} peer dictionaries
         self.file_length = 0
         if ( b'length' in self.metainfo.get(b'info') ):
             self.file_length = self.metainfo.get(b'info')[b'length']
@@ -233,7 +234,7 @@ class MessageScheduler(object):
             piece = self.pieces_buffer.pop(piece_number)
             return piece
         else:
-            logging.error('requesting a piece from the empty buffer')
+            logging.warning('requesting a piece from the empty buffer')
             return False
 
     def _schedule_have(self, piece, writables):

@@ -102,7 +102,7 @@ class Peer(object):
                     break
                 buff += msg
             except socket.error:
-                logging.error('ERROR in receiving message from peer(%s:%d)',\
+                logging.warning('socket.error in receiving message from peer(%s:%d)',\
                               self.ip, self.port)
                 break
         try:
@@ -114,7 +114,7 @@ class Peer(object):
             logging.debug(decoded_messages)
             return pieces
         except ValueError:
-            logging.error("invalid message. Skipping to next peer")
+            logging.warning("invalid message. Skipping to next peer")
             pass
     @staticmethod
     def _remove_pieces(messages):

@@ -9,6 +9,7 @@ import logging
 import message
 from peer import Peer
 import select
+from asyncio import Task, coroutine, get_event_loop
 
 
 def main(torrent_file):
@@ -16,8 +17,11 @@ def main(torrent_file):
         torrent_info = b""
         for each_line in f:
             torrent_info += each_line
+    loop = get_event_loop()
+
     mycl = client.Client(torrent_info)
-    logging.info('starting client to download a file : %s', mycl.metainfo.get(b'info')[b'name'])
+    print('starting client to download a file : %s'\
+          %mycl.metainfo.get(b'info')[b'name'].decode('utf8'))
     mycl.connect_peers()
     mycl.handshake()
     mycl.send_interested_to_all()
@@ -38,12 +42,10 @@ def main(torrent_file):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('torrent', help = 'input torrent file')
-    parser.add_argument('--logging', '-l', help = \
+    parser.add_argument('--logging', '-l', default='error', help = \
                         'level of displaying logging info (error, info, debug)',\
                         choices = ['debug', 'info', 'error'])
     arg = parser.parse_args()
     logging.basicConfig(level=arg.logging.upper())
-    print(arg.torrent)
-    print(arg.logging)
     main(arg.torrent)
 

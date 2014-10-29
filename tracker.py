@@ -36,7 +36,6 @@ class Tracker(object):
                     'downloaded': str(downloaded), 'left': str(left),\
                     'event': event, 'compact': 1}
         request_url = base_url.decode('utf8') + '?' + urllib.parse.urlencode(parameters)
-        print(urlopen(request_url).read())
         response = bencode.Bencode().decode(urlopen(request_url).read())
         logging.info('received response from tracker')    
         return response
